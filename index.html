@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font: 13px Helvetica, Arial; color: #fff; }
+    #canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: -1;
+    }
+  </style>
+  <script src="https://code.jquery.com/jquery-2.2.0.min.js"></script>
+  <script src="https://code.createjs.com/createjs-2015.11.26.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+  $(function(){
+    var socket = io();
+
+    var c = document.getElementById('canvas');
+    c.width = window.innerWidth;
+    c.height = window.innerHeight;
+
+    var stage = new createjs.Stage('canvas');
+    var bg = new createjs.Shape();
+    var container = new createjs.Container();
+    var ball = new createjs.Shape();
+    var player;
+    ball.graphics.beginFill('#ff0');
+    ball.graphics.drawCircle(0, c.height/2, 100);
+    bg.graphics.beginFill('#000');
+    bg.graphics.drawRect(0, 0, c.width, c.height);
+    stage.addChild(bg);
+    stage.update();
+
+    // 接続時に番号採番
+    socket.on('connected', function(user){
+      if(parseInt(user, 10) === 1){
+        setup('start');
+      } else {
+        setup('stay');
+      }
+      player = new Player(user);
+      $('#users').html(user);
+    });
+    socket.on('disconnected', function(){
+      if(player.id !== 1){
+        player.id -= 1;
+        if(player.id === 1){
+          setup('start');
+        }
+        $('#users').html(player.id);
+        socket.emit('refresh', player.id);
+      }
+    });
+
+    socket.on('total', function(msg){
+      $('#total').html(msg);
+    });
+    socket.on('setball', function(msg){
+      $('#status').empty();
+      ball.y = msg;
+      container.addChild(ball);
+      stage.addChild(container);
+      stage.update();
+      window.addEventListener('keydown', handleKey);
+      createjs.Ticker.addEventListener('tick', move, false);
+    });
+
+    function setup(status){
+      if(status === 'start'){
+        $('#status').addClass('start').html('START');
+        container.addChild(ball);
+        stage.addChild(container);
+        stage.update();
+      } else {
+        $('#status').html('READY...');        
+      }
+    }
+
+    function move(){
+      ball.x += 5;
+      stage.update();
+      if(ball.x >= window.innerWidth + 100){
+        socket.emit('next', ball.y);
+        container.removeChild(ball);
+        createjs.Ticker.removeEventListener('tick', move);
+        window.removeEventListener('keydown', handleKey);
+      }
+    }
+    function handleKey(e){
+      var code = e.keyCode;
+      if(code === 38){
+        // 上
+        ball.y -= 3;
+      }
+      if(code === 40){
+        // 下
+        ball.y += 3;
+      }
+      stage.update();
+    }
+
+    $('#status').on('click', function(){
+      if($(this).hasClass('start')){
+        $('#status').empty();
+        window.addEventListener('keydown', handleKey);
+        createjs.Ticker.addEventListener('tick', move, false);
+      }
+    });
+
+    function Player(user){
+      this.id = user;
+    }
+
+  });
+  </script>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  <p id="users"></p>
+  <p id="total"></p>
+  <p id="status"></p>
+</body>
+</html>
