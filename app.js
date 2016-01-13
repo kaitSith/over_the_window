@@ -12,12 +12,12 @@ app.get('/', function(req, res){
 
 // 接続した時
 io.on('connection', function(socket){
-  id.push(socket.id);
+  if(id.indexOf(socket.id) === -1){
+    id.push(socket.id);
+  }
   ++count;
   socket.emit('connected', count);
   io.emit('total', count);
-
-  console.log(socket.id + ' connected');
 
   socket.on('next', function(pos){
   	++ini;
@@ -27,16 +27,20 @@ io.on('connection', function(socket){
 
   // 切断した時
   socket.on('disconnect', function(){
-  	console.log('user disconnected');
     count--;
     io.emit('disconnected');
     io.emit('total', count);
   });
+  // 切断した際
   socket.on('refresh', function(num){
-
+    chk.push(id[num]);
+    socket.to(chk[chk.length - 1]).emit('setnum', chk.length - 1);
+    if(id.length - 1 === chk.length){
+      id = chk;
+      chk = [];
+    }
   });
 });
 
 http.listen(3000, function(){
-  console.log('listening on *:3000');
 });

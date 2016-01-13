@@ -36,6 +36,8 @@
     stage.addChild(bg);
     stage.update();
 
+    window.addEventListener('resize', resizeCanvas, false);
+
     // 接続時に番号採番
     socket.on('connected', function(user){
       if(parseInt(user, 10) === 1){
@@ -47,13 +49,13 @@
       $('#users').html(user);
     });
     socket.on('disconnected', function(){
+      socket.emit('refresh', player.id - 1);
       if(player.id !== 1){
         player.id -= 1;
         if(player.id === 1){
           setup('start');
         }
         $('#users').html(player.id);
-        socket.emit('refresh', player.id);
       }
     });
 
@@ -68,6 +70,9 @@
       stage.update();
       window.addEventListener('keydown', handleKey);
       createjs.Ticker.addEventListener('tick', move, false);
+    });
+    socket.on('setnum', function(msg){
+      player.id = msg;
     });
 
     function setup(status){
@@ -101,6 +106,12 @@
         // 下
         ball.y += 3;
       }
+      stage.update();
+    }
+    function resizeCanvas(){
+      c.width = window.innerWidth;
+      c.height = window.innerHeight;
+      bg.graphics.drawRect(0, 0, c.width, c.height);
       stage.update();
     }
 
